@@ -1,0 +1,34 @@
+sudo: required
+dist: xenial
+
+jobs:
+  include:
+    - os: linux
+      arch: amd64
+
+services:
+  - docker
+
+language: go
+
+go:
+  - 1.14.x
+
+addons:
+  apt:
+    update: true
+
+before_script:
+  - make update || travis_terminate 1;
+
+script:
+  - make build && make image || travis_terminate 1;
+
+notifications:
+  email:
+    recipients:
+    - mayank.patel@mayadata.io
+
+branches:
+  except:
+    - /^*-v[0-9]/

@@ -17,6 +17,9 @@ git_tag := $(shell git describe --exact-match --abbrev=0 2>/dev/null || echo "")
 
 VERSION ?= $(if $(git_tag),$(git_tag),$(git_branch))
 
+# to push image with tag latest
+TAG_LATEST ?= false
+
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
@@ -45,15 +48,16 @@ build-dirs:
 	@mkdir -p _output/bin/$(GOOS)/$(GOARCH)
 
 build: build-dirs
-	GOOS=$(GOOS) \
+	@GOOS=$(GOOS) \
 	GOARCH=$(GOARCH) \
 	VERSION=$(VERSION) \
 	PACKAGE=$(PACKAGE) \
 	OUTPUT_DIR=$$(pwd)/_output/bin/$(GOOS)/$(GOARCH) \
 	./hack/build.sh
 
-build-image: build
-	docker buildx build \
+image: build
+	@echo "building: $(IMAGE):$(VERSION)"
+	@docker buildx build \
 	--platform $(GOOS)/$(GOARCH) \
 	--build-arg ARCH=$(GOARCH) \
 	--build-arg OS=$(GOOS) \
@@ -61,6 +65,14 @@ build-image: build
 	--build-arg DBUILD_REPO_URL=$(DBUILD_REPO_URL) \
 	--build-arg DBUILD_SITE_URL=$(DBUILD_SITE_URL) \
 	-t $(IMAGE):$(VERSION) -f Dockerfile .
+
+deploy-image: image
+	@echo "push: $(IMAGE):$(VERSION)"
+	@docker push $(IMAGE):$(VERSION)
+ifeq ($(TAG_LATEST), true)
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
+	docker push $(IMAGE):latest
+endif
 
 clean:
 	@rm -rf .go _output

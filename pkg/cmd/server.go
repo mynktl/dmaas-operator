@@ -29,6 +29,7 @@ import (
 	"github.com/spf13/pflag"
 	velero "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
 	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -95,6 +96,7 @@ type server struct {
 	kubeClient            kubernetes.Interface
 	dmaasClient           clientset.Interface
 	veleroClient          velero.Interface
+	dynamicClient         dynamic.Interface
 	sharedInformerFactory informers.SharedInformerFactory
 	ctx                   context.Context
 	cancelFunc            context.CancelFunc
@@ -199,6 +201,11 @@ func newServer(cfg Config, opts *serverOpts, logger *logrus.Logger) (*server, er
 		return nil, errors.Wrapf(err, "failed to fetch dmaas client")
 	}
 
+	dynamicClient, err := cfg.DynamicClient()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to fetch dynamic client")
+	}
+
 	veleroClient, err := cfg.VeleroClient()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to fetch velero client")
@@ -213,6 +220,7 @@ func newServer(cfg Config, opts *serverOpts, logger *logrus.Logger) (*server, er
 		kubeClient:            kubeClient,
 		dmaasClient:           dmaasClient,
 		veleroClient:          veleroClient,
+		dynamicClient:         dynamicClient,
 		sharedInformerFactory: informers.NewSharedInformerFactoryWithOptions(dmaasClient, 0, informers.WithNamespace(cfg.GetNamespace())),
 		ctx:                   ctx,
 		logger:                logger,
@@ -235,6 +243,7 @@ func (s *server) getSupportedControllers() []controller.Controller {
 			s.namespace,
 			s.kubeClient,
 			s.dmaasClient,
+			s.dynamicClient,
 			s.sharedInformerFactory.Mayadata().V1alpha1().PreBackupActions(),
 			s.logger,
 			s.clock,

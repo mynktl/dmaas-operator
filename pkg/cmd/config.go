@@ -21,6 +21,7 @@ import (
 	clientset "github.com/mayadata-io/dmaas-operator/pkg/generated/clientset/versioned"
 	"github.com/pkg/errors"
 	velero "github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -37,8 +38,11 @@ type Config interface {
 	// KubeClient returns Kubernetes client.
 	KubeClient() (kubernetes.Interface, error)
 
-	// VeleroClient return velero client.
+	// VeleroClient returns velero client.
 	VeleroClient() (velero.Interface, error)
+
+	// DynamicClient returns kubernetes dynamic client
+	DynamicClient() (dynamic.Interface, error)
 
 	// SetClientQPS sets the Queries Per Second for a client.
 	SetClientQPS(float32) error
@@ -148,6 +152,20 @@ func (c *config) VeleroClient() (velero.Interface, error) {
 		return nil, errors.WithStack(err)
 	}
 	return veleroClient, nil
+}
+
+// DynamicClient returns k8s dynamic clientset
+func (c *config) DynamicClient() (dynamic.Interface, error) {
+	clientConfig, err := c.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(clientConfig)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return dynamicClient, nil
 }
 
 // SetClientQPS set given qps value to config
